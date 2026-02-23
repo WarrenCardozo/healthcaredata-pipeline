@@ -68,13 +68,7 @@ python pipeline.py maternity_biased.csv report_biased.pdf
 python pipeline.py maternity_missing.csv report_missing.pdf
 ```
 
-### Consent Simulator
 
-Simulate ICMR-compliant informed consent workflow:
-
-```bash
-python consent_simulator.py
-```
 
 ## Project Structure
 
@@ -87,7 +81,6 @@ python consent_simulator.py
 ├── ethics_auditor.py      # Ethics and bias checking
 ├── report_generator.py    # PDF report generation
 ├── pipeline.py            # Main pipeline script
-├── consent_simulator.py   # Consent workflow simulator
 ├── requirements.txt       # Python dependencies
 ├── maternity_master.csv   # Sample clean data
 ├── maternity_biased.csv   # Sample biased data
@@ -103,16 +96,23 @@ python consent_simulator.py
 - Returns pandas DataFrame
 
 ### 2. Data Cleaner (`cleaner.py`)
-- Removes duplicate records
-- Filters invalid ages (18-45 range)
-- Filters invalid LOS (≥2 days)
-- Imputes missing values (median for numeric, mode for categorical)
+- Removes duplicate records (keyed on PatientID if present)
+- Filters invalid ages (outside 18–45 range)
+- Filters invalid LOS (less than 2 days)
+- Imputes missing numeric values with column median
+- Imputes missing categorical values with column mode
+- Returns a cleaning_summary dictionary alongside the cleaned DataFrame, tracking:
+
+Rows loaded from source
+Rows removed per reason (duplicates, invalid age, invalid LOS)
+Total rows removed and final row count
 
 ### 3. Analyzer (`analyzer.py`)
-- Basic statistics (total patients, average age, average LOS)
+- Basic statistics: total patients, average age, average LOS
 - Complication and readmission rates
-- Group comparisons by delivery type
-- LOS and complication rates by delivery type
+- Delivery type distribution
+- LOS mean, median, and mode by delivery type
+- Complication rate by delivery type
 
 ### 4. Visualizer (`visualizer.py`)
 - Age distribution histogram
@@ -135,7 +135,8 @@ Checks for:
   - Key metrics
   - Group comparisons
   - Visualizations
-  - Ethics audit results with flags
+  - Ethics audit results with PASS or FAIL
+    - checks hipaa, ndhm, privacy, selection bias, measurement bias, group disparity, sample size, missing values, and consent
 
 ## Automated Deployment
 
@@ -157,7 +158,7 @@ The pipeline expects CSV files with the following columns:
 - `Complications`: Yes/No
 - `Readmitted`: Yes/No
 - `Location`: Urban/Rural
-
+- `ConsentObtained` : Yes/No
 ## Output
 
 The pipeline generates:
@@ -170,15 +171,6 @@ The pipeline generates:
    - `los_histogram.png`
 
  
-
-## Ethics & Compliance
-
-This pipeline implements checks based on:
-- ICMR guidelines for informed consent
-- FDA Class II device requirements
-- Fairness and bias detection principles
-- Privacy protection standards
-
 ## Troubleshooting
 
 ### Common Issues

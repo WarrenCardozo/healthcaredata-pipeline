@@ -134,33 +134,66 @@ def generate_pdf_report(results, flags, plots, output_file='report.pdf', cleanin
     # ── 1. Data Cleaning Summary ───────────────────────────────────────────────
     if cleaning_summary:
         pdf.section_title('1. Data Cleaning Summary')
-        rows_loaded  = cleaning_summary.get('rows_loaded', 'N/A')
-        rows_after   = cleaning_summary.get('rows_after_cleaning', 'N/A')
+        rows_loaded   = cleaning_summary.get('rows_loaded', 'N/A')
+        rows_after    = cleaning_summary.get('rows_after_cleaning', 'N/A')
         total_removed = cleaning_summary.get('total_rows_removed', 'N/A')
 
-        pdf.body_line(f"Rows loaded:              {rows_loaded}")
-        pdf.body_line(f"Rows after cleaning:      {rows_after}")
-        pdf.body_line(f"Total rows removed:       {total_removed}")
-
+        pdf.body_line(f"Rows loaded:          {rows_loaded}")
+        pdf.body_line(f"Rows after cleaning:  {rows_after}")
+        pdf.body_line(f"Total rows removed:   {total_removed}")
         if isinstance(rows_loaded, int) and isinstance(rows_after, int) and rows_loaded > 0:
-            pct_kept = (rows_after / rows_loaded) * 100
-            pdf.body_line(f"Data retained:            {pct_kept:.1f}%")
+            pdf.body_line(f"Data retained:        {(rows_after / rows_loaded) * 100:.1f}%")
 
         pdf.ln(2)
         pdf.set_font('Arial', 'I', 10)
         pdf.set_text_color(80, 80, 80)
         pdf.cell(0, 7, "Breakdown of removed rows:", ln=True)
         pdf.set_text_color(0, 0, 0)
-
-        breakdown = [
-            ('Duplicate records',       cleaning_summary.get('duplicates_removed', 0)),
-            ('Invalid age (outside 18-45)', cleaning_summary.get('invalid_age_removed', 0)),
-            ('Invalid LOS (< 2 days)',   cleaning_summary.get('invalid_los_removed', 0)),
-        ]
-        for label, count in breakdown:
-            status = 'removed' if count > 0 else 'none found'
+        for label, count in [
+            ('Duplicate records',            cleaning_summary.get('duplicates_removed', 0)),
+            ('Invalid age (outside 18-45)',  cleaning_summary.get('invalid_age_removed', 0)),
+            ('Invalid LOS (< 2 days)',        cleaning_summary.get('invalid_los_removed', 0)),
+        ]:
             pdf.set_font('Arial', '', 10)
-            pdf.cell(0, 7, f"  {label}: {count} row(s) {status}", ln=True)
+            pdf.cell(0, 7, f"  {label}: {count} row(s) {'removed' if count > 0 else 'none found'}", ln=True)
+
+        # ── Imputation detail table ───────────────────────────────────────────
+        imputation_log = cleaning_summary.get('imputation_log', [])
+        pdf.ln(3)
+        pdf.set_font('Arial', 'I', 10)
+        pdf.set_text_color(80, 80, 80)
+        pdf.cell(0, 7, f"Missing value imputation: {len(imputation_log)} cell(s) filled", ln=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(1)
+
+        if imputation_log:
+            # Table header
+            col_w = [30, 36, 40, 34, 30]   # PatientID, Column, Imputed Value, Method, Original
+            headers = ['Patient ID', 'Column', 'Imputed Value', 'Method', 'Was']
+            pdf.set_font('Arial', 'B', 9)
+            pdf.set_fill_color(200, 200, 200)
+            for w, h in zip(col_w, headers):
+                pdf.cell(w, 7, h, border=1, fill=True)
+            pdf.ln()
+
+            # Table rows — alternate row shading
+            for i, entry in enumerate(imputation_log):
+                pdf.set_font('Arial', '', 9)
+                fill = (i % 2 == 0)
+                pdf.set_fill_color(245, 245, 245)
+                row = [
+                    sanitize(str(entry['patient_id'])),
+                    sanitize(entry['column']),
+                    sanitize(str(entry['imputed_value'])),
+                    sanitize(entry['method']),
+                    sanitize(entry['original']),
+                ]
+                for w, val in zip(col_w, row):
+                    pdf.cell(w, 7, val, border=1, fill=fill)
+                pdf.ln()
+        else:
+            pdf.set_font('Arial', '', 10)
+            pdf.cell(0, 7, "  No missing values were found -- no imputation was necessary.", ln=True)
 
         pdf.ln(3)
 
